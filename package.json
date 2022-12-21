@@ -1,0 +1,32 @@
+{
+  "name": "wysibotbs",
+  "version": "0.1.0",
+  "exports": "./dist/main.js",
+  "type": "module",
+  "engines": {
+    "node": ">=16.0"
+  },
+  "scripts": {
+    "start": "rm -rf dist && tsc && node --no-warnings dist/main.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.11.17",
+    "@types/tmi.js": "^1.8.2",
+    "@types/ws": "^8.5.3",
+    "@typescript-eslint/eslint-plugin": "^5.47.0",
+    "@typescript-eslint/parser": "^5.47.0",
+    "eslint": "^8.30.0",
+    "eslint-config-standard-with-typescript": "^24.0.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "tmi.js": "^1.8.5",
+    "twitter-api-v2": "^1.12.10",
+    "ws": "^8.11.0"
+  }
+}

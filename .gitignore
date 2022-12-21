@@ -1,0 +1,12 @@
+# Ignore the yarn cache directory
+.yarn-cache
+
+# Ignore the node_modules directory
+node_modules
+
+# Ignore the built files
+dist
+lib
+
+# Ignore the environment variables file
+.env
