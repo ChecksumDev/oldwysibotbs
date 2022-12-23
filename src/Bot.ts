@@ -153,7 +153,7 @@ export default class Bot {
                 );
 
                 console.log(
-                    `✔️    ${tweet} ${replay_url} ${twitch_social?.link || ""} ${clip
+                    `✔️    ${tweet} ${replay_url} ${clip
                         ? ` https://clips.twitch.tv/${clip} `
                         : twitch_social
                             ? ` ${twitch_social.link} `
