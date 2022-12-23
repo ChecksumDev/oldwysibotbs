@@ -113,25 +113,33 @@ export default class Bot {
                             // Create a clip if they are streaming after 10 seconds
                             clip = await this.createClip(clip, twitch_user);
 
-                            // sleep for 15 seconds to handle clip creation time
+                            // wait for clip to process (if it does)
                             await new Promise((f) => setTimeout(f, 15000));
 
-                            // second clip for bot reaction
-                            reaction_clip = await this.createClip(clip, twitch_user);
+                            // Post the message into the chat, along with the clip if applicable.
+                            await this.twitch_bot.say(
+                                `${twitch_user.name}`,
+                                `! WYSI ${accuracy.toFixed(2)}% accuracy! ${clip
+                                    ? `https://clips.twitch.tv/${clip}`
+                                    : "(no clip, not streaming / no perms)"
+                                }`
+                            );
+
                         }
 
-                        // Post the message into the chat, along with the clip if applicable.
-                        await this.twitch_bot.say(
-                            `${twitch_user.name}`,
-                            `! WYSI ${accuracy.toFixed(2)}% accuracy! ${clip
-                                ? `https://clips.twitch.tv/${clip}`
-                                : "(no clip, not streaming / no perms)"
-                            }`
-                        );
+                        if (clip) {
+                            // wait for 20 seconds to account for reaction time.
+                            await new Promise((f) => setTimeout(f, 20000));
+
+                            // take a reaction clip for the streamers (likely) reaction to the bot.
+                            reaction_clip = await this.createClip(clip, twitch_user);
+
+                            // first clip worked, second one will also likely work, so we wait for it to process.
+                            await new Promise((f) => setTimeout(f, 20000));
+                        }
 
                         // Leave the channel
                         this.twitch_bot.part(`${twitch_user.name}`);
-
                     }
                 }
 
@@ -153,10 +161,6 @@ export default class Bot {
                     }`
                 );
 
-                if (clip) {
-                    // first clip worked, second one will also likely work, so we wait for it to process.
-                    await new Promise((f) => setTimeout(f, 20000));
-                }
 
                 // send info to Discord
                 await this.analytics(username, data, accuracy, replay_url, clip, reaction_clip, twitter_social, twitch_social);
