@@ -1,10 +1,11 @@
 import { TwitterApi } from "twitter-api-v2";
-import { Client } from 'tmi.js'
+import { RefreshingAuthProvider } from "@twurple/auth";
+import { promises as fs } from "fs";
 
 import Bot from "./Bot.js";
 import { config } from "dotenv";
 
-config() // init env variables
+config(); // init env variables
 
 const twitter = new TwitterApi({
     appKey: process.env.TWITTER_APP_KEY as string,
@@ -13,17 +14,20 @@ const twitter = new TwitterApi({
     accessSecret: process.env.TWITTER_ACCESS_SECRET,
 });
 
-const twitch = new Client({
-    'connection': {
-        secure: true,
-        reconnect: true,
+const tokenData = JSON.parse(await fs.readFile("./auth.json", "utf-8"));
+const twitchAuth = new RefreshingAuthProvider(
+    {
+        clientId: process.env.TWITCH_CLIENT_ID as string,
+        clientSecret: process.env.TWITCH_CLIENT_SECRET as string,
+        onRefresh: async (newTokenData) =>
+            await fs.writeFile(
+                "./auth.json",
+                JSON.stringify(newTokenData, null, 4),
+                "utf-8"
+            ),
     },
-    'identity': {
-        'username': process.env.TWITCH_USERNAME,
-        'password': process.env.TWITCH_PASSWORD
-    },
-});
+    tokenData
+);
 
-const bot = new Bot(twitter, twitch)
-
-await bot.connect()
+const bot = new Bot(twitter, twitchAuth);
+await bot.connect();

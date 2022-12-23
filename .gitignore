@@ -1,5 +1,6 @@
-# Ignore the yarn cache directory
+# Ignore yarn
 .yarn-cache
+yarn-error.log
 
 # Ignore the node_modules directory
 node_modules
@@ -10,3 +11,4 @@ lib
 
 # Ignore the environment variables file
 .env
+auth.json
