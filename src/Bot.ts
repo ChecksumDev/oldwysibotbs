@@ -1,9 +1,10 @@
 import { TwitterApi } from "twitter-api-v2";
-import { Data, WebSocket } from "ws";
-import { dysi, getTwitchUsername, isStreamLive } from "./utils.js";
+import { Data, MessageEvent } from "ws";
+import { dysi, getTwitchUsername, isStreamLive } from "./Utils.js";
 import { RefreshingAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 import { ApiClient, HelixUser } from "@twurple/api";
+import { PersistentWebSocket } from "./PersistentWebSocket.js";
 
 export default class Bot {
     private scores_websocket = "wss://api.beatleader.xyz/scores";
@@ -13,8 +14,6 @@ export default class Bot {
     private twitch_auth: RefreshingAuthProvider;
     private twitch_api: ApiClient;
     private twitch_bot: ChatClient;
-
-    private ws: WebSocket | undefined;
 
     constructor(twitter: TwitterApi, authProvider: RefreshingAuthProvider) {
         this.twitter = twitter;
@@ -26,45 +25,15 @@ export default class Bot {
             channels: ["checksum__"],
         });
 
-        this.setupWebsocket();
+        // Start the PersistentWebSocket with the handle_message callback
+        new PersistentWebSocket(this.scores_websocket, this.handle_message, this)
     }
 
-    private setupWebsocket() {
-        this.ws = new WebSocket(this.scores_websocket);
-
-        this.ws.addEventListener("open", () => {
-            console.log("Connected to the BeatLeader websocket!");
-        });
-
-        this.ws.addEventListener("error", (err) => {
-            console.warn(
-                `An error occured on the BeatLeader websocket, reconnecting...\nError: ${err.message}`
-            );
-            this.reconnectWebsocket();
-        });
-
-        this.ws.addEventListener("close", () => {
-            console.warn("Disconnected from the BeatLeader websocket, reconnecting");
-            this.reconnectWebsocket();
-        });
-
-        this.ws.addEventListener("message", (event) =>
-            this.handle_message(event.data)
-        );
-    }
-
-    private reconnectWebsocket() {
-        // Add a delay before attempting to reconnect
-        setTimeout(() => {
-            console.log("Attempting to reconnect to the BeatLeader websocket...");
-            // Create a new WebSocket and set up the event listeners
-            this.setupWebsocket();
-        }, 3000); // 3 seconds delay
-    }
-
-    async handle_message(message: Data): Promise<void> {
+    async handle_message(message: MessageEvent): Promise<void> {
         try {
-            const data = JSON.parse(message.toString()) as WebsocketData;
+            const data = JSON.parse(message.data.toString()) as WebsocketData;
+
+            const replay_url = `https://replay.beatleader.xyz/?scoreId=${data.id}`;
             const accuracy = data.accuracy * 100;
 
             if (dysi(accuracy.toFixed(2).toString())) {
@@ -77,23 +46,14 @@ export default class Bot {
                             "Content-Type": "application/json",
                         },
                     }
-                ).then((res) => res.json())) as any;
+                ).then((res) => res.json()));
 
-                const twitter_social = player.socials
-                    ? player.socials?.find((social: any) => social.service === "Twitter")
-                    : null;
-                const twitch_social = player.socials
-                    ? player.socials?.find((social: any) => social.service === "Twitch")
-                    : null;
+                const { twitter_social, twitch_social } = this.extractSocials(player);
 
-                const username = twitter_social
+                const display_name = twitter_social
                     ? `@${twitter_social.link.split("/").pop()}`
                     : player.name;
-                const tweet = `${username} just got a ${accuracy.toFixed(2)}% on ${data.leaderboard.song.name
-                    } (${data.leaderboard.difficulty.difficultyName}) by ${data.leaderboard.song.author
-                    }!`;
 
-                const replay_url = `https://replay.beatleader.xyz/?scoreId=${data.id}`;
                 let clip: string | null = null;
                 let reaction_clip: string | null = null;
 
@@ -104,8 +64,8 @@ export default class Bot {
                     );
 
                     if (twitch_user) {
-                        await this.twitch_bot.join(`${twitch_user?.name}`);
                         // Join the channel
+                        await this.twitch_bot.join(`${twitch_user?.name}`);
 
                         if (await isStreamLive(this.twitch_api, twitch_user.name)) {
                             await new Promise((f) => setTimeout(f, 10000));
@@ -124,7 +84,6 @@ export default class Bot {
                                     : "(no clip, not streaming / no perms)"
                                 }`
                             );
-
                         }
 
                         if (clip) {
@@ -142,6 +101,10 @@ export default class Bot {
                         this.twitch_bot.part(`${twitch_user.name}`);
                     }
                 }
+
+                const tweet = `${display_name} just got a ${accuracy.toFixed(2)}% on ${data.leaderboard.song.name
+                    } (${data.leaderboard.difficulty.difficultyName}) by ${data.leaderboard.song.author
+                    }!`;
 
                 await this.twitter.v2.tweet(
                     `#WYSI! ${tweet}${clip
@@ -163,7 +126,7 @@ export default class Bot {
 
 
                 // send info to Discord
-                await this.analytics(username, data, accuracy, replay_url, clip, reaction_clip, twitter_social, twitch_social);
+                await this.analytics(display_name, data, accuracy, replay_url, clip, reaction_clip, twitter_social, twitch_social);
 
             } else {
                 console.log(
@@ -175,7 +138,18 @@ export default class Bot {
         }
     }
 
-    private async analytics(
+    public extractSocials(player: { socials: any[]; }) {
+        const twitter_social = player.socials
+            ? player.socials?.find((social) => social.service === "Twitter")
+            : null;
+
+        const twitch_social = player.socials
+            ? player.socials?.find((social) => social.service === "Twitch")
+            : null;
+        return { twitter_social, twitch_social };
+    }
+
+    public async analytics(
         username: string,
         data: WebsocketData,
         accuracy: number,

@@ -1,13 +1,13 @@
 {
   "name": "wysibotbs",
   "version": "0.1.0",
-  "exports": "./dist/main.js",
+  "exports": "./dist/Main.js",
   "type": "module",
   "engines": {
     "node": ">=16.0"
   },
   "scripts": {
-    "start": "rm -rf dist && tsc && node --no-warnings dist/main.js"
+    "start": "rm -rf dist && tsc && node --no-warnings dist/Main.js"
   },
   "license": "MIT",
   "devDependencies": {
